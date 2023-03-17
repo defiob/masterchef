@@ -61,10 +61,7 @@ contract MasterChef is Ownable {
     }
 
     // Return reward multiplier over the given _from to _to block.
-    function getMultiplier(
-        uint256 _from,
-        uint256 _to
-    ) public view returns (uint256) {
+    function getMultiplier(uint256 _from, uint256 _to) public view returns (uint256) {
         if (_to <= bonusEndBlock) {
             return _to.sub(_from);
         } else if (_from >= bonusEndBlock) {
@@ -87,9 +84,7 @@ contract MasterChef is Ownable {
             PoolInfo({
                 lpToken: _lpToken,
                 allocPoint: _allocPoint,
-                lastRewardBlock: block.number > startBlock
-                    ? block.number
-                    : startBlock,
+                lastRewardBlock: block.number > startBlock ? block.number : startBlock,
                 accRewardPerShare: 0
             })
         );
@@ -103,10 +98,7 @@ contract MasterChef is Ownable {
         if (_withUpdate) {
             massUpdatePools();
         }
-        totalAllocPoint =
-            totalAllocPoint -
-            poolInfo[_pid].allocPoint +
-            _allocPoint;
+        totalAllocPoint = totalAllocPoint - poolInfo[_pid].allocPoint + _allocPoint;
         poolInfo[_pid].allocPoint = _allocPoint;
     }
 
@@ -128,13 +120,8 @@ contract MasterChef is Ownable {
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 reward = multiplier
-            .mul(rewardPerBlock)
-            .mul(pool.allocPoint)
-            .div(totalAllocPoint);
-        pool.accRewardPerShare = pool.accRewardPerShare.add(
-            reward.mul(1e12).div(lpSupply)
-        );
+        uint256 reward = multiplier.mul(rewardPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+        pool.accRewardPerShare = pool.accRewardPerShare.add(reward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
 
@@ -151,8 +138,7 @@ contract MasterChef is Ownable {
                 pool.lastRewardBlock,
                 block.number
             );
-            uint256 reward = (multiplier * rewardPerBlock * pool.allocPoint) /
-                totalAllocPoint;
+            uint256 reward = (multiplier * rewardPerBlock * pool.allocPoint) / totalAllocPoint;
             accRewardPerShare = accRewardPerShare + (reward * 1e12) / lpSupply;
         }
         return (user.amount * accRewardPerShare) / 1e12 - user.rewardDebt;
@@ -163,9 +149,7 @@ contract MasterChef is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
-            uint256 pending = (user.amount * pool.accRewardPerShare) /
-                1e12 -
-                user.rewardDebt;
+            uint256 pending = (user.amount * pool.accRewardPerShare) / 1e12 - user.rewardDebt;
             if (pending > 0) {
                 rewardToken.safeTransfer(address(msg.sender), pending);
             }
@@ -187,9 +171,7 @@ contract MasterChef is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not enough");
         updatePool(_pid);
-        uint256 pending = (user.amount * pool.accRewardPerShare) /
-            1e12 -
-            user.rewardDebt;
+        uint256 pending = (user.amount * pool.accRewardPerShare) / 1e12 - user.rewardDebt;
         if (pending > 0) {
             rewardToken.safeTransfer(address(msg.sender), pending);
         }
