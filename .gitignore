@@ -1,3 +1,4 @@
 /.deps
 /contracts/artifacts
 /contracts/interface/artifacts
+/node_modules
