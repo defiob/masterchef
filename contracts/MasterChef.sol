@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "./interface/IERC20MintBurnable.sol";
 
 contract MasterChef is Ownable {
     using SafeMath for uint256;
@@ -23,7 +24,7 @@ contract MasterChef is Ownable {
         uint256 accRewardPerShare; // 每份存款对应的奖励值
     }
 
-    IERC20 public rewardToken; // 奖励代币
+    IERC20MintBurnable public rewardToken; // 奖励代币
     uint256 public rewardPerBlock; // 每个区块的奖励数量
     uint256 public totalAllocPoint = 0; // 所有池子的总奖励点数
     uint256 public startBlock; // 挖矿开始的区块
@@ -41,12 +42,10 @@ contract MasterChef is Ownable {
     );
 
     constructor(
-        IERC20 _rewardToken,
         uint256 _rewardPerBlock,
         uint256 _startBlock,
         uint256 _bonusEndBlock
     ) {
-        rewardToken = _rewardToken;
         rewardPerBlock = _rewardPerBlock;
         startBlock = _startBlock;
         bonusEndBlock = _bonusEndBlock;
@@ -56,12 +55,27 @@ contract MasterChef is Ownable {
         return poolInfo.length;
     }
 
+    function setRewardToken(IERC20MintBurnable _rewardToken) public onlyOwner {
+        require(
+            address(_rewardToken) != address(0),
+            "Error! rewardToken cannot be zero address"
+        );
+        require(
+            address(rewardToken) != address(_rewardToken),
+            "Error! rewardToken address is the same as the old one"
+        );
+        rewardToken = _rewardToken;
+    }
+
     function stopReward() public onlyOwner {
         bonusEndBlock = block.number;
     }
 
     // Return reward multiplier over the given _from to _to block.
-    function getMultiplier(uint256 _from, uint256 _to) public view returns (uint256) {
+    function getMultiplier(
+        uint256 _from,
+        uint256 _to
+    ) public view returns (uint256) {
         if (_to <= bonusEndBlock) {
             return _to.sub(_from);
         } else if (_from >= bonusEndBlock) {
@@ -84,7 +98,9 @@ contract MasterChef is Ownable {
             PoolInfo({
                 lpToken: _lpToken,
                 allocPoint: _allocPoint,
-                lastRewardBlock: block.number > startBlock ? block.number : startBlock,
+                lastRewardBlock: block.number > startBlock
+                    ? block.number
+                    : startBlock,
                 accRewardPerShare: 0
             })
         );
@@ -98,7 +114,10 @@ contract MasterChef is Ownable {
         if (_withUpdate) {
             massUpdatePools();
         }
-        totalAllocPoint = totalAllocPoint - poolInfo[_pid].allocPoint + _allocPoint;
+        totalAllocPoint =
+            totalAllocPoint -
+            poolInfo[_pid].allocPoint +
+            _allocPoint;
         poolInfo[_pid].allocPoint = _allocPoint;
     }
 
@@ -120,8 +139,13 @@ contract MasterChef is Ownable {
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 reward = multiplier.mul(rewardPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        pool.accRewardPerShare = pool.accRewardPerShare.add(reward.mul(1e12).div(lpSupply));
+        uint256 reward = multiplier
+            .mul(rewardPerBlock)
+            .mul(pool.allocPoint)
+            .div(totalAllocPoint);
+        pool.accRewardPerShare = pool.accRewardPerShare.add(
+            reward.mul(1e12).div(lpSupply)
+        );
         pool.lastRewardBlock = block.number;
     }
 
@@ -138,7 +162,8 @@ contract MasterChef is Ownable {
                 pool.lastRewardBlock,
                 block.number
             );
-            uint256 reward = (multiplier * rewardPerBlock * pool.allocPoint) / totalAllocPoint;
+            uint256 reward = (multiplier * rewardPerBlock * pool.allocPoint) /
+                totalAllocPoint;
             accRewardPerShare = accRewardPerShare + (reward * 1e12) / lpSupply;
         }
         return (user.amount * accRewardPerShare) / 1e12 - user.rewardDebt;
@@ -149,9 +174,11 @@ contract MasterChef is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
-            uint256 pending = (user.amount * pool.accRewardPerShare) / 1e12 - user.rewardDebt;
+            uint256 pending = (user.amount * pool.accRewardPerShare) /
+                1e12 -
+                user.rewardDebt;
             if (pending > 0) {
-                rewardToken.safeTransfer(address(msg.sender), pending);
+                rewardToken.mint(address(msg.sender), pending);
             }
         }
         if (_amount > 0) {
@@ -171,9 +198,11 @@ contract MasterChef is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not enough");
         updatePool(_pid);
-        uint256 pending = (user.amount * pool.accRewardPerShare) / 1e12 - user.rewardDebt;
+        uint256 pending = (user.amount * pool.accRewardPerShare) /
+            1e12 -
+            user.rewardDebt;
         if (pending > 0) {
-            rewardToken.safeTransfer(address(msg.sender), pending);
+            rewardToken.mint(address(msg.sender), pending);
         }
         if (_amount > 0) {
             user.amount = user.amount - _amount;
